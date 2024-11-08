@@ -5,15 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 
+	"github.com/google/uuid"
 	"github.com/thiagohmm/producer/internal"
 )
 
 type HandlerCompra struct {
-	Processa string                 `json:"processa"`
-	Dados    map[string]interface{} `json:"dados"`
+	Processo       string                 `json:"processo"`
+	Processa       string                 `json:"processa"`
+	StatusProcesso string                 `json:"statusProcesso"`
+	Dados          map[string]interface{} `json:"dados"`
 }
 
 func NewControllerCompra(inf map[string]interface{}, url string) (*HandlerCompra, error) {
@@ -30,8 +34,10 @@ func NewControllerCompra(inf map[string]interface{}, url string) (*HandlerCompra
 	}
 
 	return &HandlerCompra{
-		Processa: tipoTransacao,
-		Dados:    inf,
+		Processo:       uuid.New().String(),
+		StatusProcesso: "processando",
+		Processa:       tipoTransacao,
+		Dados:          inf,
 	}, nil
 }
 
@@ -88,9 +94,24 @@ func (h *HandlerCompra) Salvar(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Erro ao serializar objeto", http.StatusInternalServerError)
 		return
 	}
+
+	// err = internal.GravarCompraEmRedis((*internal.Dados)(compraobj))
+	// if err != nil {
+	// 	http.Error(w, "Erro de gravacao de processo", http.StatusInternalServerError)
+	// 	log.Print(err)
+	// 	return
+	// }
+
+	// Send the message to the queue
 	errCh := make(chan error)
 
 	go func() {
+		err = internal.GravarCompraEmRedis((*internal.Dados)(compraobj))
+		if err != nil {
+			http.Error(w, "Erro de gravacao de processo", http.StatusInternalServerError)
+			log.Print(err)
+			return
+		}
 		err := internal.SendToQueue(compraobj, errCh)
 		errCh <- err
 	}()
@@ -114,7 +135,8 @@ func (h *HandlerCompra) Salvar(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	// Escreva os dados serializados na resposta HTTP
-	_, err = w.Write([]byte("Mensagem será processada"))
+	_, err = w.Write([]byte("Processo: " + compraobj.Processo + "\nMensagem será processada"))
+
 	if err != nil {
 		fmt.Println("Erro ao escrever resposta:", err)
 	}
