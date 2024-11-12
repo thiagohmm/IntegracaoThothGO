@@ -13,9 +13,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	// r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-	// 	w.Write([]byte("hello world"))
-	// })
+
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 	})
@@ -24,7 +22,7 @@ func main() {
 		r.Post("/EnviaDadosCompra", handler.Salvar)
 		r.Post("/EnviaDadosEstoque", handler.Salvar)
 		r.Post("/EnviaDadosVendas", handler.Salvar)
-
+		r.Get("/getStatusProcesso/{processo}", handler.PegarStatusProcesso)
 	})
 	http.ListenAndServe(":3009", r)
 }
