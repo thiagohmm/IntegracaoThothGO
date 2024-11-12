@@ -23,6 +23,7 @@ func main() {
 		r.Post("/EnviaDadosEstoque", handler.Salvar)
 		r.Post("/EnviaDadosVendas", handler.Salvar)
 		r.Get("/getStatusProcesso/{processo}", handler.PegarStatusProcesso)
+		r.Get("/getAll/{processo}", handler.PegarTudo)
 	})
 	http.ListenAndServe(":3009", r)
 }
