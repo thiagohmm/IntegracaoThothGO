@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -9,14 +10,18 @@ import (
 )
 
 func main() {
+
+	// Inicializa conexões
+	handlers.InitRabbitMQ()
+	handlers.InitRedis()
+
 	handler := &handlers.HandlerAtena{}
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("ok"))
-	})
+	r.Get("/health", handlers.HealthCheckHandler)
+
 	r.Route("/v1", func(r chi.Router) {
 
 		r.Post("/EnviaDadosCompra", handler.Salvar)
@@ -25,5 +30,6 @@ func main() {
 		r.Get("/getStatusProcesso/{processo}", handler.PegarStatusProcesso)
 		r.Get("/getAll/{processo}", handler.PegarTudo)
 	})
-	http.ListenAndServe(":3009", r)
+	log.Println("Servidor iniciado com sucesso na porta 3009")
+	http.ListenAndServe(":3008", r)
 }
