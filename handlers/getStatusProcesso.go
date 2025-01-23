@@ -21,7 +21,7 @@ func init() {
 }
 
 // Função para pegar o status do processo no Redis
-func (h *HandlerCompra) PegarStatusProcesso(w http.ResponseWriter, r *http.Request) {
+func (h *HandlerAtena) PegarStatusProcesso(w http.ResponseWriter, r *http.Request) {
 
 	// Obtenha o ID do processo da URL
 	processo := r.PathValue("processo")

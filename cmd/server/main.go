@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	handler := &handlers.HandlerCompra{}
+	handler := &handlers.HandlerAtena{}
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
