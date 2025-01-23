@@ -21,7 +21,7 @@ func init() {
 }
 
 // Função para pegar o status do processo no Redis
-func (h *HandlerCompra) PegarTudo(w http.ResponseWriter, r *http.Request) {
+func (h *HandlerAtena) PegarTudo(w http.ResponseWriter, r *http.Request) {
 
 	// Obtenha o ID do processo da URL
 	processo := r.PathValue("processo")
@@ -50,7 +50,7 @@ func (h *HandlerCompra) PegarTudo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Deserializar o JSON armazenado
-	var dados HandlerCompra
+	var dados HandlerAtena
 	if err := json.Unmarshal([]byte(result), &dados); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

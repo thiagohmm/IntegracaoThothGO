@@ -13,14 +13,14 @@ import (
 	"github.com/thiagohmm/producer/internal"
 )
 
-type HandlerCompra struct {
+type HandlerAtena struct {
 	Processo       string                 `json:"processo"`
 	Processa       string                 `json:"processa"`
 	StatusProcesso string                 `json:"statusProcesso"`
 	Dados          map[string]interface{} `json:"dados"`
 }
 
-func NewControllerCompra(inf map[string]interface{}, url string) (*HandlerCompra, error) {
+func NewControllerAtena(inf map[string]interface{}, url string) (*HandlerAtena, error) {
 	var tipoTransacao string
 	if url == "/v1/EnviaDadosCompra" {
 		tipoTransacao = "compra"
@@ -33,7 +33,7 @@ func NewControllerCompra(inf map[string]interface{}, url string) (*HandlerCompra
 		return nil, errors.New("inf is nil")
 	}
 
-	return &HandlerCompra{
+	return &HandlerAtena{
 		Processo:       uuid.New().String(),
 		StatusProcesso: "processando",
 		Processa:       tipoTransacao,
@@ -41,8 +41,8 @@ func NewControllerCompra(inf map[string]interface{}, url string) (*HandlerCompra
 	}, nil
 }
 
-func (h *HandlerCompra) Salvar(w http.ResponseWriter, r *http.Request) {
-	var compra map[string]interface{}
+func (h *HandlerAtena) Salvar(w http.ResponseWriter, r *http.Request) {
+	var objAtena map[string]interface{}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -64,13 +64,13 @@ func (h *HandlerCompra) Salvar(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("jsonCompactado:", dadosJSON)
 	if dadosJSON != "" {
 		// Decode the jsonCompactado value
-		compra, err = internal.ExtrairJsonAsync(dadosJSON)
+		objAtena, err = internal.ExtrairJsonAsync(dadosJSON)
 		if err != nil {
 			http.Error(w, "Erro ao extrair JSON", http.StatusInternalServerError)
 			return
 		}
 	} else {
-		err = json.Unmarshal(body, &compra)
+		err = json.Unmarshal(body, &objAtena)
 		if err != nil {
 			http.Error(w, "Erro ao converter JSON", http.StatusInternalServerError)
 			return
@@ -78,7 +78,7 @@ func (h *HandlerCompra) Salvar(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	compraobj, err := NewControllerCompra(compra, r.URL.String())
+	atenaobj, err := NewControllerAtena(objAtena, r.URL.String())
 	if err != nil {
 
 		http.Error(w, "Erro ao criar ControllerCompra", http.StatusInternalServerError)
@@ -95,24 +95,16 @@ func (h *HandlerCompra) Salvar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// err = internal.GravarCompraEmRedis((*internal.Dados)(compraobj))
-	// if err != nil {
-	// 	http.Error(w, "Erro de gravacao de processo", http.StatusInternalServerError)
-	// 	log.Print(err)
-	// 	return
-	// }
-
-	// Send the message to the queue
 	errCh := make(chan error)
 
 	go func() {
-		err = internal.GravarCompraEmRedis((*internal.Dados)(compraobj))
+		err = internal.GravarObjEmRedis((*internal.Dados)(atenaobj))
 		if err != nil {
 			http.Error(w, "Erro de gravacao de processo", http.StatusInternalServerError)
 			log.Print(err)
 			return
 		}
-		err := internal.SendToQueue(compraobj, errCh)
+		err := internal.SendToQueue(atenaobj, errCh)
 		errCh <- err
 	}()
 
@@ -135,7 +127,7 @@ func (h *HandlerCompra) Salvar(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	// Escreva os dados serializados na resposta HTTP
-	_, err = w.Write([]byte("Processo: " + compraobj.Processo + "\nMensagem será processada"))
+	_, err = w.Write([]byte("Processo: " + atenaobj.Processo + "\nMensagem será processada"))
 
 	if err != nil {
 		fmt.Println("Erro ao escrever resposta:", err)

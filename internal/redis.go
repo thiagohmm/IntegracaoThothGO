@@ -3,6 +3,8 @@ package internal
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -16,10 +18,10 @@ type Dados struct {
 }
 
 // GravarCompraEmRedis grava o objeto dados no Redis
-func GravarCompraEmRedis(dados *Dados) error {
+func GravarObjEmRedis(dados *Dados) error {
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379", // Endereço do Redis
-		Password: "eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81",
+		Addr:     os.Getenv("ENV_REDIS_ADDRESS"),  // Endereço do Redis
+		Password: os.Getenv("ENV_REDIS_PASSWORD"), // Senha do Redis
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -31,7 +33,11 @@ func GravarCompraEmRedis(dados *Dados) error {
 	}
 
 	// Grava o JSON no Redis com uma chave baseada no Processo
-	expiracao := 5 * 24 * time.Hour
+	expireHours, err := strconv.Atoi(os.Getenv("ENV_REDIS_EXPIRE"))
+	if err != nil {
+		return err
+	}
+	expiracao := time.Duration(expireHours) * 24 * time.Hour
 	err = rdb.Set(ctx, dados.Processo, compraJSON, expiracao).Err()
 	return err
 }
