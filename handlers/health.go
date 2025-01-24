@@ -32,6 +32,20 @@ func InitRedis() {
 	})
 }
 
+func ReconnectRabbitMQ() {
+	for {
+		var err error
+		rabbitConn, err = amqp.Dial(os.Getenv("RABBITMQ_URL"))
+		if err != nil {
+			log.Printf("Falha ao reconectar no RabbitMQ: %v", err)
+			time.Sleep(5 * time.Second) // Espera 5 segundos antes de tentar novamente
+			continue
+		}
+		log.Println("Reconectado ao RabbitMQ com sucesso")
+		break
+	}
+}
+
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()

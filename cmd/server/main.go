@@ -31,5 +31,5 @@ func main() {
 		r.Get("/getAll/{processo}", handler.PegarTudo)
 	})
 	log.Println("Servidor iniciado com sucesso na porta 3009")
-	http.ListenAndServe(":3008", r)
+	http.ListenAndServe(":3009", r)
 }

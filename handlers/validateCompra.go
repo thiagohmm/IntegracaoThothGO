@@ -119,6 +119,7 @@ func (h *HandlerAtena) Salvar(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Println("Erro ao enviar para a fila:", err)
 		http.Error(w, "Erro ao enviar para a fila", http.StatusInternalServerError)
+		ReconnectRabbitMQ()
 		return
 	}
 
