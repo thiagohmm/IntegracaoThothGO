@@ -10,6 +10,8 @@ import (
 	"net/url"
 
 	"github.com/google/uuid"
+	//"github.com/thiagohmm/producer/handlers"
+
 	"github.com/thiagohmm/producer/internal"
 )
 
@@ -81,12 +83,7 @@ func (h *HandlerAtena) Salvar(w http.ResponseWriter, r *http.Request) {
 	atenaobj, err := NewControllerAtena(objAtena, r.URL.String())
 	if err != nil {
 
-		http.Error(w, "Erro ao criar ControllerCompra", http.StatusInternalServerError)
-		return
-	}
-
-	if err != nil {
-		http.Error(w, "Erro ao serializar objeto", http.StatusInternalServerError)
+		http.Error(w, "Erro ao criar Controller", http.StatusInternalServerError)
 		return
 	}
 
@@ -98,31 +95,37 @@ func (h *HandlerAtena) Salvar(w http.ResponseWriter, r *http.Request) {
 	errCh := make(chan error)
 
 	go func() {
-		err = internal.GravarObjEmRedis((*internal.Dados)(atenaobj))
+		err := internal.GravarObjEmRedis((*internal.Dados)(atenaobj))
 		if err != nil {
-			http.Error(w, "Erro de gravacao de processo", http.StatusInternalServerError)
-			log.Print(err)
+			log.Printf("Erro ao gravar no Redis: %v", err)
+			ReconnectRedis()
+			errCh <- fmt.Errorf("Erro ao gravar no Redis: %w", err)
 			return
 		}
-		err := internal.SendToQueue(atenaobj, errCh)
-		errCh <- err
+
+		err = internal.SendToQueue(atenaobj, errCh)
+		if err != nil {
+			log.Printf("Erro ao enviar para a fila: %v", err)
+			ReconnectRabbitMQ()
+			errCh <- fmt.Errorf("Erro ao enviar para a fila: %w", err)
+			return
+		}
+
+		errCh <- nil // Indica sucesso
 	}()
 
+	// Espera o resultado da goroutine
 	err = <-errCh
 	if err != nil {
-		fmt.Println("Error sending to queue:", err)
-	} else {
-		fmt.Println("Message sent successfully")
-	}
-	if err != nil {
+		log.Printf("Erro no processamento: %v", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("Erro ao enviar para a fila:", err)
-		http.Error(w, "Erro ao enviar para a fila", http.StatusInternalServerError)
-		ReconnectRabbitMQ()
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	fmt.Println("Mensagem enviada com sucesso!")
+	w.WriteHeader(http.StatusOK)
 	// Defina o cabeçalho HTTP antes de escrever o corpo
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
