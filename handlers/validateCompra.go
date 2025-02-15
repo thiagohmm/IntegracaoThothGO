@@ -20,7 +20,7 @@ type HandlerAtena struct {
 	Processo       string                 `json:"processo"`
 	Processa       string                 `json:"processa"`
 	StatusProcesso string                 `json:"statusProcesso"`
-	DtRecebimento  string                 `json:"dtrecebimento"`
+	DtRecebimento  string                 `json:"dt_recebimento"`
 	Dados          map[string]interface{} `json:"dados"`
 }
 
@@ -95,59 +95,58 @@ func (h *HandlerAtena) Salvar(w http.ResponseWriter, r *http.Request) {
 
 	atenaobj, err := NewControllerAtena(objAtena, r.URL.String())
 	if err != nil {
-
 		http.Error(w, "Erro ao criar Controller", http.StatusInternalServerError)
 		return
+	}
+
+	err = internal.GravarObjEmRedis(atenaobj.ToInternalDados())
+	if err != nil {
+		http.Error(w, "Erro ao serializar objeto", http.StatusInternalServerError)
+		return
+	}
+
+	errCh := make(chan error)
+
+	go func() {
 		err = internal.GravarObjEmRedis(atenaobj.ToInternalDados())
-
 		if err != nil {
-			http.Error(w, "Erro ao serializar objeto", http.StatusInternalServerError)
+			log.Printf("Erro ao gravar no Redis: %v", err)
+			ReconnectRedis()
+			errCh <- fmt.Errorf("Erro ao gravar no Redis: %w", err)
 			return
 		}
 
-		errCh := make(chan error)
-
-		go func() {
-			err = internal.GravarObjEmRedis(atenaobj.ToInternalDados())
-			if err != nil {
-				log.Printf("Erro ao gravar no Redis: %v", err)
-				ReconnectRedis()
-				errCh <- fmt.Errorf("Erro ao gravar no Redis: %w", err)
-				return
-			}
-
-			err = internal.SendToQueue(atenaobj, errCh)
-			if err != nil {
-				log.Printf("Erro ao enviar para a fila: %v", err)
-				ReconnectRabbitMQ()
-				errCh <- fmt.Errorf("Erro ao enviar para a fila: %w", err)
-				return
-			}
-
-			errCh <- nil // Indica sucesso
-		}()
-
-		// Espera o resultado da goroutine
-		err = <-errCh
+		err = internal.SendToQueue(atenaobj, errCh)
 		if err != nil {
-			log.Printf("Erro no processamento: %v", err)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("Erro ao enviar para a fila: %v", err)
+			ReconnectRabbitMQ()
+			errCh <- fmt.Errorf("Erro ao enviar para a fila: %w", err)
 			return
 		}
 
-		fmt.Println("Mensagem enviada com sucesso!")
-		w.WriteHeader(http.StatusOK)
-		// Defina o cabeçalho HTTP antes de escrever o corpo
+		errCh <- nil // Indica sucesso
+	}()
+
+	// Espera o resultado da goroutine
+	err = <-errCh
+	if err != nil {
+		log.Printf("Erro no processamento: %v", err)
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-		// Escreva os dados serializados na resposta HTTP
-		_, err = w.Write([]byte("Processo: " + atenaobj.Processo + "\nMensagem será processada"))
+	fmt.Println("Mensagem enviada com sucesso!")
+	w.WriteHeader(http.StatusOK)
+	// Defina o cabeçalho HTTP antes de escrever o corpo
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 
-		if err != nil {
-			fmt.Println("Erro ao escrever resposta:", err)
-		}
+	// Escreva os dados serializados na resposta HTTP
+	_, err = w.Write([]byte("Processo: " + atenaobj.Processo + "\nMensagem será processada"))
+
+	if err != nil {
+		fmt.Println("Erro ao escrever resposta:", err)
 	}
 }

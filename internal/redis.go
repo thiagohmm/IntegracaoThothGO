@@ -14,7 +14,7 @@ type Dados struct {
 	Processo       string                 `json:"processo"`
 	Processa       string                 `json:"processa"`
 	StatusProcesso string                 `json:"statusProcesso"`
-	DtRecebimento  string                 `json:"dtrecebimento"`
+	DtRecebimento  string                 `json:"dt_recebimento"`
 	Dados          map[string]interface{} `json:"dados"`
 }
 
