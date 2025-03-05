@@ -29,6 +29,8 @@ func main() {
 		r.Post("/EnviaDadosVendas", handler.Salvar)
 		r.Get("/getStatusProcesso/{processo}", handler.PegarStatusProcesso)
 		r.Get("/getAll/{processo}", handler.PegarTudo)
+		r.Get("/requeue", handler.Reenqueue)
+		r.Post("/filter", handler.Filtrar)
 	})
 	log.Println("Servidor iniciado com sucesso na porta 3009")
 	http.ListenAndServe(":3009", r)
