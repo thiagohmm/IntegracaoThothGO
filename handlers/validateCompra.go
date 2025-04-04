@@ -66,13 +66,9 @@ func (h *HandlerAtena) Salvar(w http.ResponseWriter, r *http.Request) {
 	}
 	//fmt.Println("Body:", string(body))
 
-	values, err := url.ParseQuery(string(body))
-	if err != nil {
-		http.Error(w, "Erro ao analisar o corpo da requisição", http.StatusBadRequest)
-		return
-	}
+	values, _ := url.ParseQuery(string(body))
 
-	//fmt.Println("Values:", values)
+	fmt.Println("Values:", values)
 
 	// Get the jsonCompactado value
 	dadosJSON := values.Get("jsonCompactado")
